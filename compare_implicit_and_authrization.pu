@@ -1,0 +1,108 @@
+@startuml
+title OAuth 2.0 - Compare Implict and Authorization code grant
+
+actor "Resource owner" as owner
+participant "User agent" as agent
+participant Client as client
+participant "AuthZ server" as auth
+participant "Resource server" as resource
+
+activate owner
+
+owner -> agent: Request
+activate agent
+
+agent -> client: Request
+activate client
+
+client -> client: want to use \n resources
+agent <- client: Redirect to \nAuthZ server
+deactivate client
+
+==: start OAuth grant :==
+
+agent -> auth: Authorization request
+activate auth
+note right
+    GET /oauth/authorize
+end note
+
+note over auth
+    Do form authentication
+end note
+
+agent <- auth: Present approval form
+deactivate auth
+
+owner <- agent: Present approval form
+deactivate agent
+
+owner -> agent: Approval
+activate agent
+
+agent -> auth: POST approval
+activate auth
+note right
+    POST /oauth/approval
+end note
+
+agent <- auth: Redirect to callback
+deactivate auth
+
+alt impilicit grant
+    agent -> client: Notify access token
+    activate client
+    note right
+        GET /callback#access_token=access-token
+    end note
+
+    note over agent, client #IMPLEMENTATION
+        Acess token は User agent を経由し、
+        フロントチャネルで Client に届く
+    end note
+
+else authorization code grant
+    agent -> client: Notify authorization code
+    note right
+        GET /callback?code=<AUTHORIZATION CODE>
+    end note
+    note over agent, client #IMPLEMENTATION
+        User agent を経由するのは、
+        authorization code のみ
+    end note
+
+    client -> auth: Request access token
+    activate auth
+    note right
+        POST /oauth/token
+    end note
+
+    client <- auth: Response access token
+    deactivate auth
+    note over client, auth #IMPLEMENTATION
+        Access token は　User agent を経由せず、
+        バックチャネルで Client に届く
+    end note
+
+end
+
+==: end OAuth grant :==
+
+client -> resource: Request resource
+activate resource
+note right
+    GET /foo
+    Authorization: Bearer access-token
+end note
+
+client <- resource: Response resource
+deactivate resource
+
+agent <- client: Response
+deactivate client
+
+owner <- agent: Response
+deactivate agent
+deactivate owner
+
+@enduml
